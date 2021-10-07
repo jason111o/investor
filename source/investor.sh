@@ -33,7 +33,7 @@ investing_growth() {
     ii=$(echo "$ii + $growth" | bc -l)
   done
   result=$(printf "%'.2f" $ii) # Add commas to big numbers
-  zenity --info --title "Pip's Investment Calculator" --text "\$$result"
+  zenity --info --title "Pip's Investment Calculator" --text "Total Investment Growth \$$result"
 }
 
 #### e.g. investing_monthly $initial_investment $ten_year_return $years_to_invest $monthly_investment
@@ -47,7 +47,7 @@ investing_monthly() {
     ii=$(echo "$ii + $growth + $4" | bc -l)
   done
   result=$(printf "%'.2f" $ii) # Add commas to big numbers
-  zenity --info --title "Pip's Investment Calculator" --text "\$$result"
+  zenity --info --title "Pip's Investment Calculator" --text "Total Investment Growth \$$result"
 }
 
 #### e.g. investing_yearly $initial_investment $ten_year_return $years_to_invest $yearly_investment
@@ -59,7 +59,7 @@ investing_yearly() {
     ii=$(echo "$ii + $growth + $4" | bc -l)
   done
   result=$(printf "%'.2f" $ii) # Add commas to big numbers
-  zenity --info --title "Pip's Investment Calculator" --text "\$$result"
+  zenity --info --title "Pip's Investment Calculator" --text "Total Investment Growth \$$result"
 }
 ###################################FUNCTIONS####################################
 ################################################################################
