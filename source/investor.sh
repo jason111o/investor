@@ -3,7 +3,8 @@
 #### Vars
 title="Pip's Investment Calculator"
 text="Fill in the entries to calculate growth of wealth"
-version=1.1
+version=2.0
+warning="zenity --error --title $title"
 case $1 in
   "-v")
   echo -e "\n$title\n$version\n"
@@ -17,113 +18,107 @@ esac
 num_check() {
   for (( i=0; i<${#1}; i++ )); do
     if [[ ${1:$i:1} != [0-9] ]]; then
-      return 1
-    else
-      return 0
+			$warning --text "Enter whole numbers only"
+			exit 1
     fi
   done
 }
-
-#### e.g. investing_growth $1(initial_investment) $2(ten_year_return) $3(years_to_invest)
+#### Aquire investment strategy from user
+#### e.g. investing_growth [initial_investment|rate_of_return|years_to_invest|monthly_contribution|yearly_contribution]
 investing_growth() {
-  tyr=$(echo "$2 / 100" | bc -l) ## convert percentage to decimal
-  ii=$1
-  for (( i=1; i<=$3; i++ )); do
-    growth=$(echo "$ii * $tyr" | bc -l)
-    ii=$(echo "$ii + $growth" | bc -l)
-  done
-  result=$(printf "%'.2f" $ii) # Add commas to big numbers
-  zenity --info --title "Pip's Investment Calculator" --text "Total Investment Growth \$$result"
-}
-
-#### e.g. investing_monthly $initial_investment $ten_year_return $years_to_invest $monthly_investment
-investing_monthly() {
-  tyr=$(echo "$2 / 100" | bc -l) ## convert percentage to decimal
-  mr=$(echo "$tyr / 12" | bc -l) ## Monthly percentage
-  months=$(echo "$3 * 12" | bc -l)
-  ii=$1
-  for (( i=1; i<=$months; i++ )); do
-    growth=$(echo "$ii * $mr" | bc -l)
-    ii=$(echo "$ii + $growth + $4" | bc -l)
-  done
-  result=$(printf "%'.2f" $ii) # Add commas to big numbers
-  zenity --info --title "Pip's Investment Calculator" --text "Total Investment Growth \$$result"
-}
-
-#### e.g. investing_yearly $initial_investment $ten_year_return $years_to_invest $yearly_investment
-investing_yearly() {
-  tyr=$(echo "$2 / 100" | bc -l) ## convert percentage to decimal
-  ii=$1
-  for (( i=1; i<=$3; i++ )); do
-    growth=$(echo "$ii * $tyr" | bc -l)
-    ii=$(echo "$ii + $growth + $4" | bc -l)
-  done
-  result=$(printf "%'.2f" $ii) # Add commas to big numbers
+	# $1
+	if [[ $1 == "" ]]; then
+		initial_investment=0
+	else
+		initial_investment=$1
+	fi
+	# $2
+	if [[ $2 == "" ]]; then
+		yearly_rate=0
+	else
+		yearly_rate=$(echo "$2 / 100" | bc -l) ## convert percentage to decimal
+	fi
+	# $3
+	if [[ $3 == "" ]]; then
+		years_to_invest=0
+		monthly_rate=0
+	elif [[ $3 > 0 ]]; then
+		years_to_invest=$(echo $3)
+		monthly_rate=$(echo "$yearly_rate / 12" | bc -l)
+	fi
+	# $4
+	if [[ $4 == "" ]]; then
+		monthly_contribution=0
+	else
+		monthly_contribution=$(echo $4)
+	fi
+	# $5
+	if [[ $5 == "" ]]; then
+		yearly_contribution=0
+	else
+		yearly_contribution=$(echo $5)
+	fi
+	echo "****TESTING****
+	initial_investment = \"$initial_investment\"
+	yearly_rate = \"$yearly_rate\"
+	years_to_invest = \"$years_to_invest\"
+	monthly_contribution = \"$monthly_contribution\"
+	yearly_contribution = \"$yearly_contribution\""
+	if [[ $monthly_contribution > 0 ]]; then
+		total_months=$(echo "$years_to_invest * 12" | bc -l)
+		montly_rate=$(echo "$yearly_rate / 12" | bc -l)
+		for (( i=0; i<$total_months; i++ )); do
+			growth=$(echo "$initial_investment * $monthly_rate" | bc -l)
+			initial_investment=$(echo "$initial_investment + $growth + $monthly_contribution" | bc -l)
+			is_year=$(echo "$i % 12" | bc -l)
+			if [[ $is_year == 0 ]] && [[ $yearly_contribution > 0 ]]; then
+				initial_investment=$(echo "$initial_investment + $yearly_contribution" | bc -l)
+			fi
+			result=$(printf "%'.2f" $initial_investment) # Add commas to big numbers
+		done
+	fi
+	if [[ $years_to_invest > 0 ]]; then
+		for (( i=0; i<$years_to_invest; i++ )); do
+			echo "i = $i" #*testing*#
+			growth=$(echo "$initial_investment * $yearly_rate + $yearly_contribution" | bc -l)
+			initial_investment=$(echo "$initial_investment + $growth" | bc -l)
+		done
+		result=$(printf "%'.2f" $initial_investment) # Add commas to big numbers
+	else
+		result=$(printf "%'.2f" $initial_investment) # Add commas to big numbers
+	fi
   zenity --info --title "Pip's Investment Calculator" --text "Total Investment Growth \$$result"
 }
 ###################################FUNCTIONS####################################
 ################################################################################
 
-#### Set up zenity error for validating numerical values
-warning="zenity --error --title $title"
-
 #### Get basic investment data
 investment_data=$(zenity --forms \
 	--title "$title" \
 	--text $text \
-	--add-entry="Initial Investment" \
-	--add-entry="10 Year Return %" \
-	--add-entry="Years Planned To Invest")
+	--add-entry="Initial Investment $" \
+	--add-entry="Rate of Return %" \
+	--add-entry="Years Planned To Invest" \
+	--add-entry="Monthly Contribution $" \
+	--add-entry="Yearly Contribution $")
 if [[ $? != 0 ]]; then
 	exit 99
 fi
 
 #### Seperate data values
 initial_investment=$(echo $investment_data | cut -d \| -f 1)
-ten_year_return=$(echo $investment_data | cut -d \| -f 2)
+rate_of_return=$(echo $investment_data | cut -d \| -f 2)
 years_to_invest=$(echo $investment_data | cut -d \| -f 3)
+monthly_contribution=$(echo $investment_data | cut -d \| -f 4)
+yearly_contribution=$(echo $investment_data | cut -d \| -f 5)
 
 #### Validate data values
 num_check $initial_investment
-if [[ $? != 0 ]]; then
-  $warning --text "\"$initial_investment\" is not a numerical value"
-  exit 0
-fi
-num_check $ten_year_return
-if [[ $? != 0 ]]; then
-  $warning --text "\"$ten_year_return\" is not a numerical value"
-  exit 0
-fi
+num_check $rate_of_return
 num_check $years_to_invest
-if [[ $? != 0 ]]; then
-  $warning --text "\"$years_to_invest\" is not a numerical value"
-  exit 0
-fi
+num_check $monthly_investment
+num_check $yearly_investment
 
-#### Monthly investments?
-zenity --question --title "$title" --text "Will there be monthly investments?"
-if [[ $? == 0 ]]; then
-	monthly_investment=$(zenity --forms \
-      --title $title \
-	  --text $text \
-	  --add-entry="Amount")
-    investing_monthly $initial_investment $ten_year_return $years_to_invest $monthly_investment
-    exit 0
-fi
-
-#### Yearly investments?
-zenity --question --title "$title" --text "Will there be yearly investments?"
-if [[ $? == 0 ]]; then
-  yearly_investment=$(zenity --forms \
-    --title $title \
-    --text $text \
-    --add-entry="Amount")
-    investing_yearly $initial_investment $ten_year_return $years_to_invest $yearly_investment
-    exit 0
-else
-  ## Computate growth if neither monthly or yearly were selected
-  investing_growth $initial_investment $ten_year_return $years_to_invest
-  exit 0
-fi
+investing_growth $initial_investment $rate_of_return $years_to_invest $monthly_contribution $yearly_contribution
 
 exit 0
